@@ -1,1 +1,843 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Windspeaker — Card Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================================
+           DESIGN TOKENS — Windspeaker Brand
+        ========================================================= */
+        :root {
+            --navy:      #0e3356;
+            --navy-dark: #091f38;
+            --gold:      #dab653;
+            --gold-warm: #e0b355;
+            --blue-mid:  #1984ac;
+            --teal:      #58aaa9;
+            --mint:      #dee9dd;
+            --white:     #ffffff;
+
+            --text-primary:   rgba(255,255,255,0.92);
+            --text-secondary: rgba(255,255,255,0.55);
+            --surface:        rgba(255,255,255,0.06);
+            --surface-hover:  rgba(255,255,255,0.10);
+            --border:         rgba(255,255,255,0.10);
+            --radius-lg:      20px;
+            --radius-md:      12px;
+            --radius-sm:      8px;
+        }
+
+        /* =========================================================
+           RESET & BASE
+        ========================================================= */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--navy-dark);
+            color: var(--text-primary);
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+
+            /* Subtle background texture */
+            background-image:
+                radial-gradient(ellipse 80% 60% at 50% -10%, rgba(25,132,172,0.18) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 90% 110%, rgba(218,182,83,0.08) 0%, transparent 60%);
+        }
+
+        /* =========================================================
+           HEADER
+        ========================================================= */
+        header {
+            width: 100%;
+            max-width: 480px;
+            padding: 28px 20px 20px;
+            text-align: center;
+        }
+
+        .logo-wordmark {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            letter-spacing: 0.14em;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        /* =========================================================
+           API KEY SETUP PANEL
+        ========================================================= */
+        .setup-panel {
+            width: calc(100% - 40px);
+            max-width: 440px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .setup-panel h2 {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--white);
+        }
+
+        .setup-panel p {
+            font-size: 0.80rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }
+
+        .setup-panel input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.88rem;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .setup-panel input:focus {
+            border-color: var(--gold);
+        }
+
+        .setup-panel input::placeholder {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
+        /* =========================================================
+           BUTTONS
+        ========================================================= */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.2s, background 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .btn:active { transform: scale(0.97); }
+
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-gold {
+            background: var(--gold);
+            color: var(--navy-dark);
+        }
+
+        .btn-gold:hover:not(:disabled) {
+            background: var(--gold-warm);
+        }
+
+        .btn-ghost {
+            background: var(--surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--surface-hover);
+        }
+
+        /* =========================================================
+           CAMERA AREA
+        ========================================================= */
+        .camera-wrapper {
+            width: calc(100% - 40px);
+            max-width: 440px;
+            position: relative;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            background: #000;
+            /* Pokemon card aspect: 2.5 x 3.5 inches → ~5:7 */
+            /* We make the viewport 4:3 to give breathing room */
+            aspect-ratio: 4 / 3;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+
+        #videoEl {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Framing overlay — shows user where to place the card */
+        .frame-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .card-frame {
+            width: 52%;
+            aspect-ratio: 5 / 7;
+            border: 2px solid var(--gold);
+            border-radius: 10px;
+            box-shadow: 0 0 0 1px rgba(218,182,83,0.15), 0 0 30px rgba(218,182,83,0.08) inset;
+            position: relative;
+        }
+
+        /* Corner marks */
+        .card-frame::before,
+        .card-frame::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-color: var(--gold);
+            border-style: solid;
+        }
+
+        .card-frame::before {
+            top: -2px; left: -2px;
+            border-width: 3px 0 0 3px;
+            border-radius: 4px 0 0 0;
+        }
+
+        .card-frame::after {
+            bottom: -2px; right: -2px;
+            border-width: 0 3px 3px 0;
+            border-radius: 0 0 4px 0;
+        }
+
+        /* Scanning animation */
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0;
+            animation: none;
+        }
+
+        .scan-line.active {
+            opacity: 1;
+            animation: scanDown 1.6s ease-in-out infinite;
+        }
+
+        @keyframes scanDown {
+            0%   { top: 0%; opacity: 0.8; }
+            50%  { top: 100%; opacity: 0.8; }
+            100% { top: 0%; opacity: 0; }
+        }
+
+        /* =========================================================
+           STATUS MESSAGE
+        ========================================================= */
+        .status-bar {
+            width: calc(100% - 40px);
+            max-width: 440px;
+            text-align: center;
+            padding: 12px 0 4px;
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            min-height: 36px;
+            letter-spacing: 0.01em;
+            line-height: 1.5;
+        }
+
+        .status-bar.highlight { color: var(--teal); }
+        .status-bar.error     { color: #ff7474; }
+        .status-bar.success   { color: var(--gold); }
+
+        /* =========================================================
+           CONTROLS
+        ========================================================= */
+        .controls {
+            width: calc(100% - 40px);
+            max-width: 440px;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 10px;
+            padding: 8px 0 24px;
+        }
+
+        /* =========================================================
+           RESULT CARD
+        ========================================================= */
+        .result-section {
+            width: calc(100% - 40px);
+            max-width: 440px;
+            margin-bottom: 40px;
+            display: none;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .result-section.visible { display: block; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-header {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            padding-left: 2px;
+        }
+
+        .result-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .result-img-wrapper {
+            background: linear-gradient(160deg, rgba(25,132,172,0.12), rgba(14,51,86,0.6));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-img-wrapper img {
+            max-height: 280px;
+            width: auto;
+            border-radius: 10px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+            display: block;
+        }
+
+        .result-img-placeholder {
+            width: 120px;
+            height: 168px;
+            background: var(--surface);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+        }
+
+        .result-body {
+            padding: 20px;
+        }
+
+        .result-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.3rem;
+            color: var(--gold);
+            margin-bottom: 16px;
+            line-height: 1.3;
+        }
+
+        .result-grid {
+            display: grid;
+            gap: 0;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.88rem;
+        }
+
+        .result-row:last-child { border-bottom: none; }
+
+        .row-label {
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .row-value {
+            color: var(--white);
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .rarity-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: rgba(218,182,83,0.15);
+            border: 1px solid rgba(218,182,83,0.3);
+            border-radius: 99px;
+            color: var(--gold);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* =========================================================
+           HIDDEN ELEMENTS
+        ========================================================= */
+        canvas { display: none; }
+
+        /* =========================================================
+           LOADING SPINNER
+        ========================================================= */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo-wordmark">Windspeaker</div>
+        <div class="page-subtitle">Pokemon Card Scanner — Prototype</div>
+    </header>
+
+    <!-- API KEY SETUP PANEL -->
+    <!-- Panel ini hanya muncul sekali. Setelah API key disimpan, tidak muncul lagi. -->
+    <div class="setup-panel" id="setupPanel">
+        <h2>Masukkan Gemini API Key</h2>
+        <p>API key hanya disimpan di browser kamu dan tidak dikirim ke mana pun selain ke Google. Kamu hanya perlu melakukan ini sekali.</p>
+        <input
+            type="password"
+            id="apiKeyInput"
+            placeholder="Paste API key kamu di sini (AIza...)"
+            autocomplete="off"
+        >
+        <button class="btn btn-gold" onclick="saveApiKey()">Simpan dan Mulai</button>
+    </div>
+
+    <!-- VIEWFINDER KAMERA -->
+    <div class="camera-wrapper" id="cameraWrapper">
+        <video id="videoEl" autoplay playsinline muted></video>
+        <!-- Bingkai panduan penempatan kartu -->
+        <div class="frame-overlay">
+            <div class="card-frame">
+                <div class="scan-line" id="scanLine"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="status-bar" id="statusMsg">Masukkan API key untuk memulai.</div>
+
+    <!-- TOMBOL KONTROL -->
+    <div class="controls">
+        <button class="btn btn-ghost" onclick="switchCamera()" id="switchBtn" disabled>
+            Balik Kamera
+        </button>
+        <button class="btn btn-gold" onclick="scanCard()" id="scanBtn" disabled>
+            Scan Kartu
+        </button>
+    </div>
+
+    <!-- HASIL SCAN -->
+    <div class="result-section" id="resultSection">
+        <div class="result-header">Hasil Identifikasi</div>
+        <div class="result-card">
+            <!-- Gambar digital kartu -->
+            <div class="result-img-wrapper">
+                <div class="result-img-placeholder" id="imgPlaceholder">Gambar tidak tersedia</div>
+                <img id="resultImg" src="" alt="Card image" style="display:none">
+            </div>
+            <!-- Info kartu -->
+            <div class="result-body">
+                <div class="result-name" id="resultName">Nama Kartu</div>
+                <div class="result-grid">
+                    <div class="result-row">
+                        <span class="row-label">Rarity</span>
+                        <span class="row-value" id="resultRarity">
+                            <span class="rarity-badge" id="rarityBadge">—</span>
+                        </span>
+                    </div>
+                    <div class="result-row">
+                        <span class="row-label">Nomor Kartu</span>
+                        <span class="row-value" id="resultNumber">—</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="row-label">Nama Set</span>
+                        <span class="row-value" id="resultSet">—</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="row-label">Bahasa</span>
+                        <span class="row-value" id="resultLang">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas tersembunyi untuk mengambil frame dari video -->
+    <canvas id="canvasEl"></canvas>
+
+    <script>
+        // ===========================================================
+        //  KONFIGURASI AWAL
+        // ===========================================================
+
+        // Cek apakah API key sudah tersimpan dari sesi sebelumnya
+        let apiKey     = localStorage.getItem('geminiApiKey') || '';
+        let facingMode = 'environment'; // 'environment' = kamera belakang (default untuk scan)
+
+        // Jika sudah punya API key, langsung sembunyikan panel setup dan nyalakan kamera
+        if (apiKey) {
+            document.getElementById('setupPanel').style.display = 'none';
+            startCamera();
+        }
+
+        // ===========================================================
+        //  SIMPAN API KEY
+        // ===========================================================
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput').value.trim();
+            if (!input) {
+                alert('Silakan masukkan API key terlebih dahulu.');
+                return;
+            }
+            apiKey = input;
+            localStorage.setItem('geminiApiKey', apiKey); // Simpan di browser
+            document.getElementById('setupPanel').style.display = 'none';
+            startCamera();
+        }
+
+        // ===========================================================
+        //  KAMERA — nyalakan stream video dari kamera perangkat
+        // ===========================================================
+        async function startCamera() {
+            setStatus('Mengaktifkan kamera...', '');
+
+            try {
+                // Hentikan stream yang sedang berjalan (jika ada) sebelum membuka yang baru
+                const videoEl = document.getElementById('videoEl');
+                if (videoEl.srcObject) {
+                    videoEl.srcObject.getTracks().forEach(t => t.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: facingMode,
+                        width:  { ideal: 1280 },
+                        height: { ideal: 960 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoEl.srcObject = stream;
+
+                // Aktifkan tombol setelah kamera berhasil menyala
+                document.getElementById('scanBtn').disabled   = false;
+                document.getElementById('switchBtn').disabled = false;
+
+                setStatus('Arahkan kartu Pokemon ke dalam bingkai kuning, lalu tekan Scan.', '');
+
+            } catch (err) {
+                setStatus(
+                    'Gagal mengakses kamera. Pastikan browser mendapat izin kamera dan kamu menggunakan HTTPS.',
+                    'error'
+                );
+                console.error('Camera error:', err);
+            }
+        }
+
+        // Toggle antara kamera depan dan kamera belakang
+        function switchCamera() {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            startCamera();
+        }
+
+        // ===========================================================
+        //  AMBIL FRAME DARI VIDEO
+        //  Fungsi ini mengambil satu gambar diam dari video yang sedang berjalan
+        // ===========================================================
+        function captureFrame() {
+            const video  = document.getElementById('videoEl');
+            const canvas = document.getElementById('canvasEl');
+
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            // Kembalikan gambar sebagai base64 JPEG (kualitas 85%)
+            // 'split' digunakan untuk membuang prefix "data:image/jpeg;base64,"
+            return canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        }
+
+        // ===========================================================
+        //  SCAN KARTU — fungsi utama yang mengorkestrasi semua langkah
+        // ===========================================================
+        async function scanCard() {
+            const scanBtn = document.getElementById('scanBtn');
+            const scanLine = document.getElementById('scanLine');
+
+            // Nonaktifkan tombol selama proses berlangsung
+            scanBtn.disabled = true;
+            scanLine.classList.add('active'); // Animasi scanning
+            document.getElementById('resultSection').classList.remove('visible');
+
+            try {
+                // --- LANGKAH 1: Ambil gambar dari kamera ---
+                setStatus('Mengambil gambar...', 'highlight');
+                const imageBase64 = captureFrame();
+
+                // --- LANGKAH 2: Kirim ke Gemini untuk identifikasi kartu ---
+                setStatus('<span class="spinner"></span>Menganalisis kartu dengan AI...', 'highlight');
+                document.getElementById('statusMsg').innerHTML =
+                    '<span class="spinner"></span>Menganalisis kartu dengan AI...';
+
+                const cardInfo = await analyzeWithGemini(imageBase64);
+
+                if (!cardInfo) {
+                    setStatus('Kartu tidak dapat diidentifikasi. Pastikan kartu terlihat jelas dan pencahayaan cukup.', 'error');
+                    finishScan(scanBtn, scanLine);
+                    return;
+                }
+
+                setStatus(`Terdeteksi: "${cardInfo.name}" — Mencari di database TCGdex...`, 'highlight');
+
+                // --- LANGKAH 3: Cari data lengkap di TCGdex ---
+                const cardData = await searchTCGdex(cardInfo);
+
+                if (!cardData) {
+                    setStatus(`"${cardInfo.name}" tidak ditemukan di database. Coba scan ulang atau pastikan kartu tidak tertutup.`, 'error');
+                    finishScan(scanBtn, scanLine);
+                    return;
+                }
+
+                // --- LANGKAH 4: Tampilkan hasil ---
+                displayResult(cardData, cardInfo.language);
+                setStatus('Kartu berhasil diidentifikasi.', 'success');
+
+            } catch (err) {
+                console.error('Scan error:', err);
+                setStatus('Terjadi kesalahan teknis. Periksa API key kamu dan coba lagi.', 'error');
+            }
+
+            finishScan(scanBtn, scanLine);
+        }
+
+        // Reset state tombol setelah scan selesai
+        function finishScan(btn, line) {
+            btn.disabled = false;
+            line.classList.remove('active');
+        }
+
+        // ===========================================================
+        //  LANGKAH 2: ANALISIS DENGAN GEMINI VISION
+        //  Gemini membaca teks yang tercetak di kartu dan mengembalikan JSON
+        // ===========================================================
+        async function analyzeWithGemini(imageBase64) {
+            const prompt = `You are an expert at reading Pokemon Trading Card Game (TCG) cards.
+Carefully examine the card in the image and extract exactly:
+1. The card name printed at the top (e.g. "Pikachu", "Charizard ex", "Professor's Research")
+2. The card's local number printed at the bottom left or bottom center (the number BEFORE the slash, e.g. if you see "025/198" the cardNumber is "025")
+3. The card's language: respond "id" if the card text is in Bahasa Indonesia, or "en" if in English
+
+Return ONLY a valid JSON object, no explanation, no markdown, just the raw JSON:
+{"name": "Pikachu", "cardNumber": "025", "language": "en"}
+
+If the image does not clearly show a Pokemon card or you cannot read the name and number, return:
+{"error": "cannot identify"}`;
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: prompt },
+                                { inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }
+                            ]
+                        }],
+                        generationConfig: {
+                            temperature: 0.05,    // Mendekati nol agar respons deterministik
+                            maxOutputTokens: 120
+                        }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(`Gemini API error: ${errData.error?.message || response.status}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (!text) return null;
+
+            // Bersihkan kemungkinan backtick Markdown dari respons Gemini
+            const cleaned = text.replace(/```json|```/g, '').trim();
+
+            let parsed;
+            try {
+                parsed = JSON.parse(cleaned);
+            } catch {
+                // Jika JSON tidak valid, coba ekstrak dengan regex sebagai fallback
+                const nameMatch = cleaned.match(/"name"\s*:\s*"([^"]+)"/);
+                const numMatch  = cleaned.match(/"cardNumber"\s*:\s*"([^"]+)"/);
+                const langMatch = cleaned.match(/"language"\s*:\s*"([^"]+)"/);
+                if (nameMatch) {
+                    parsed = {
+                        name: nameMatch[1],
+                        cardNumber: numMatch?.[1] || '',
+                        language: langMatch?.[1] || 'en'
+                    };
+                } else {
+                    return null;
+                }
+            }
+
+            if (parsed.error) return null;
+            return parsed;
+        }
+
+        // ===========================================================
+        //  LANGKAH 3: CARI DI TCGDEX
+        //  TCGdex adalah database kartu Pokemon yang gratis dan terbuka
+        // ===========================================================
+        async function searchTCGdex(cardInfo) {
+            const { name, cardNumber, language } = cardInfo;
+
+            // Tentukan locale. TCGdex mendukung 'id' untuk Bahasa Indonesia
+            // Kita coba bahasa yang terdeteksi lebih dulu, lalu fallback ke English
+            const locales = language === 'id' ? ['id', 'en'] : ['en', 'id'];
+
+            for (const lang of locales) {
+                const url = `https://api.tcgdex.net/v2/${lang}/cards?name=${encodeURIComponent(name)}`;
+                const res = await fetch(url);
+
+                if (!res.ok) continue;
+
+                const cards = await res.json();
+                if (!Array.isArray(cards) || cards.length === 0) continue;
+
+                // Cari kartu yang nomor lokalnya cocok dengan yang terbaca Gemini
+                // Kita normalize ke integer agar "025" dan "25" dianggap sama
+                const targetNum = parseInt(cardNumber, 10);
+                let matched = cards.find(c => parseInt(c.localId, 10) === targetNum);
+
+                // Jika tidak ada nomor yang cocok, ambil hasil pertama sebagai tebakan terbaik
+                if (!matched) matched = cards[0];
+
+                // Ambil detail lengkap kartu (termasuk rarity dan info set)
+                const detailRes = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${matched.id}`);
+                if (!detailRes.ok) continue;
+
+                const detail = await detailRes.json();
+                detail._resolvedLang = lang; // Simpan bahasa yang berhasil resolve
+                return detail;
+            }
+
+            return null; // Tidak ditemukan di semua locale yang dicoba
+        }
+
+        // ===========================================================
+        //  LANGKAH 4: TAMPILKAN HASIL KE UI
+        // ===========================================================
+        function displayResult(card, detectedLanguage) {
+            // -- Gambar digital kartu --
+            const imgEl          = document.getElementById('resultImg');
+            const imgPlaceholder = document.getElementById('imgPlaceholder');
+
+            if (card.image) {
+                imgEl.src = card.image + '/high.webp';
+                imgEl.style.display  = 'block';
+                imgPlaceholder.style.display = 'none';
+                imgEl.onerror = () => {
+                    // Jika .webp gagal, coba .png
+                    imgEl.src = card.image + '/high.png';
+                };
+            } else {
+                imgEl.style.display  = 'none';
+                imgPlaceholder.style.display = 'flex';
+            }
+
+            // -- Nama kartu --
+            document.getElementById('resultName').textContent = card.name || 'Nama tidak tersedia';
+
+            // -- Rarity --
+            document.getElementById('rarityBadge').textContent = card.rarity || 'Tidak diketahui';
+
+            // -- Nomor kartu dalam set --
+            const total = card.set?.cardCount?.total || '?';
+            document.getElementById('resultNumber').textContent =
+                `${String(card.localId).padStart(3, '0')} / ${total}`;
+
+            // -- Nama set --
+            document.getElementById('resultSet').textContent = card.set?.name || 'Tidak diketahui';
+
+            // -- Bahasa yang berhasil ditemukan di TCGdex --
+            const resolvedLang = card._resolvedLang || detectedLanguage || 'en';
+            document.getElementById('resultLang').textContent =
+                resolvedLang === 'id' ? 'Bahasa Indonesia' : 'English';
+
+            // Tampilkan section hasil dengan animasi
+            document.getElementById('resultSection').classList.add('visible');
+
+            // Scroll halus ke hasil
+            setTimeout(() => {
+                document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        // ===========================================================
+        //  HELPER: SET STATUS MESSAGE
+        // ===========================================================
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('statusMsg');
+            el.textContent    = msg;
+            el.className      = 'status-bar';
+            if (type) el.classList.add(type);
+        }
+    </script>
+</body>
+</html>
 
